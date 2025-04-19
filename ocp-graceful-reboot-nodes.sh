@@ -32,7 +32,17 @@ LOG_LEVEL_ERROR="ERROR"
 # Temporary files
 NODE_LIST_FILE=""
 
-# Logging function
+# Colors for terminal output
+COLOR_RESET="\033[0m"
+COLOR_RED="\033[0;31m"
+COLOR_GREEN="\033[0;32m"
+COLOR_YELLOW="\033[0;33m"
+COLOR_BLUE="\033[0;34m"
+COLOR_PURPLE="\033[0;35m"
+COLOR_CYAN="\033[0;36m"
+COLOR_BOLD="\033[1m"
+
+# Logging function with colors
 log() {
     local level=$1
     shift
@@ -41,20 +51,19 @@ log() {
     
     case "$level" in
         "$LOG_LEVEL_INFO")
-            echo "[$timestamp] $level: $message"
+            echo -e "[${COLOR_CYAN}$timestamp${COLOR_RESET}] ${COLOR_GREEN}$level${COLOR_RESET}: $message"
             ;;
         "$LOG_LEVEL_WARNING")
-            echo "[$timestamp] $level: $message" >&2
+            echo -e "[${COLOR_CYAN}$timestamp${COLOR_RESET}] ${COLOR_YELLOW}$level${COLOR_RESET}: $message" >&2
             ;;
         "$LOG_LEVEL_ERROR")
-            echo "[$timestamp] $level: $message" >&2
+            echo -e "[${COLOR_CYAN}$timestamp${COLOR_RESET}] ${COLOR_RED}$level${COLOR_RESET}: $message" >&2
             ;;
         *)
-            echo "[$timestamp] $level: $message"
+            echo -e "[${COLOR_CYAN}$timestamp${COLOR_RESET}] $level: $message"
             ;;
     esac
 }
-
 # Cleanup function
 cleanup() {
     if [[ -f "$NODE_LIST_FILE" ]]; then
@@ -345,8 +354,7 @@ reboot_node() {
     local node=$1
     local dry_run=$2
     
-    log "$LOG_LEVEL_INFO" "Starting graceful reboot process for node: $node"
-    
+    log "$LOG_LEVEL_INFO" "Starting graceful reboot process for node: ${COLOR_CYAN}$node${COLOR_RESET}"
     # Step 1: Drain the node
     if ! drain_node "$node" "$dry_run"; then
         log "$LOG_LEVEL_ERROR" "Failed to drain node $node before reboot"
@@ -398,16 +406,14 @@ generate_status_report() {
     local successful_nodes=$2
     local failed_nodes=$3
     local report_file="reboot-report-$(date +%Y%m%d-%H%M%S).txt"
-    
-    log "$LOG_LEVEL_INFO" "=========================================="
-    log "$LOG_LEVEL_INFO" "Reboot Status Report"
-    log "$LOG_LEVEL_INFO" "=========================================="
+    log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_BLUE}===========================================${COLOR_RESET}"
+    log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_BLUE}Reboot Status Report${COLOR_RESET}"
+    log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_BLUE}===========================================${COLOR_RESET}"
     log "$LOG_LEVEL_INFO" "Total nodes processed: $total_nodes"
     log "$LOG_LEVEL_INFO" "Successfully rebooted: $successful_nodes"
     log "$LOG_LEVEL_INFO" "Failed to reboot: $failed_nodes"
-    log "$LOG_LEVEL_INFO" "Success rate: $(( (successful_nodes * 100) / total_nodes ))%"
-    log "$LOG_LEVEL_INFO" "=========================================="
-    # Save report to file
+    log "$LOG_LEVEL_INFO" "Success rate: ${COLOR_BOLD}$(( (successful_nodes * 100) / total_nodes ))%${COLOR_RESET}"
+    log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_BLUE}===========================================${COLOR_RESET}"
     {
         echo "=========================================="
         echo "Reboot Status Report - $(date)"
@@ -449,17 +455,15 @@ process_nodes_parallel() {
         if [ $batch_end -ge $total_nodes ]; then
             batch_end=$((total_nodes - 1))
         fi
-        
-        log "$LOG_LEVEL_INFO" "=========================================="
-        log "$LOG_LEVEL_INFO" "Processing batch of nodes: $((batch_start + 1)) to $((batch_end + 1)) of $total_nodes"
-        log "$LOG_LEVEL_INFO" "=========================================="
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}===========================================${COLOR_RESET}"
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}Processing batch of nodes: $((batch_start + 1)) to $((batch_end + 1)) of $total_nodes${COLOR_RESET}"
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}===========================================${COLOR_RESET}"
         # Start a batch of nodes
         for j in $(seq $batch_start $batch_end); do
             local node=${nodes[$j]}
             
-            echo "=========================================="
-            echo "Processing node: $node ($(($j + 1))/$total_nodes)"
-            
+            echo -e "${COLOR_BOLD}===========================================${COLOR_RESET}"
+            echo -e "${COLOR_BOLD}Processing node: ${COLOR_CYAN}$node${COLOR_RESET}${COLOR_BOLD} ($(($j + 1))/$total_nodes)${COLOR_RESET}"
             # Ask for confirmation if not skipping prompts
             if ! $skip_prompts; then
                 read -p "Reboot node $node? (y/n): " confirm
@@ -474,10 +478,9 @@ process_nodes_parallel() {
             fi
             # Gracefully reboot the node (drain, reboot, and later uncordon)
             reboot_node "$node" "$dry_run"
-            echo "Started reboot process for node $node"
-            echo "=========================================="
+            echo -e "Started reboot process for node ${COLOR_CYAN}$node${COLOR_RESET}"
+            echo -e "${COLOR_BOLD}===========================================${COLOR_RESET}"
             echo ""
-            
             # Skip waiting in dry run mode
             if [ "$dry_run" = true ]; then
                 successful_nodes=$((successful_nodes + 1))
@@ -616,9 +619,9 @@ main() {
     fi
     # Indicate if we're in dry run mode
     if [ "$dry_run" = true ]; then
-        log "$LOG_LEVEL_INFO" "============================================"
-        log "$LOG_LEVEL_INFO" "DRY RUN MODE - No actual changes will be made"
-        log "$LOG_LEVEL_INFO" "============================================"
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_PURPLE}============================================${COLOR_RESET}"
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_PURPLE}DRY RUN MODE - No actual changes will be made${COLOR_RESET}"
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_PURPLE}============================================${COLOR_RESET}"
     fi
     # Check if timeout command is available
     check_timeout_command
@@ -660,9 +663,8 @@ main() {
     # Initial confirmation before starting any reboots
     if ! $skip_prompts; then
         local node_count=$(wc -l < "$NODE_LIST_FILE")
-        log "$LOG_LEVEL_INFO" "=========================================="
-        log "$LOG_LEVEL_INFO" "You are about to gracefully reboot $node_count node(s) with parallelism of $parallel_count."
-        log "$LOG_LEVEL_INFO" "This process will:"
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_YELLOW}===========================================${COLOR_RESET}"
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_YELLOW}You are about to gracefully reboot $node_count node(s) with parallelism of $parallel_count.${COLOR_RESET}"
         log "$LOG_LEVEL_INFO" " 1. Drain each node (evacuate pods)"
         log "$LOG_LEVEL_INFO" " 2. Reboot the node"
         log "$LOG_LEVEL_INFO" " 3. Wait for node to become ready" 
@@ -672,8 +674,8 @@ main() {
         else
             log "$LOG_LEVEL_INFO" "This will cause service disruption if not handled properly."
         fi
-        log "$LOG_LEVEL_INFO" "Make sure you understand the impact of this operation."
-        log "$LOG_LEVEL_INFO" "=========================================="
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_YELLOW}Make sure you understand the impact of this operation.${COLOR_RESET}"
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_YELLOW}===========================================${COLOR_RESET}"
         read -p "Do you want to proceed? (y/n): " initial_confirm
         if [[ "$initial_confirm" != "y" ]]; then
             log "$LOG_LEVEL_INFO" "Operation cancelled by user"
@@ -690,12 +692,11 @@ main() {
     rm -f "$NODE_LIST_FILE"
     
     if [ $reboot_result -eq 0 ]; then
-        log "$LOG_LEVEL_INFO" "All nodes processed. Script complete."
+        log "$LOG_LEVEL_INFO" "${COLOR_BOLD}${COLOR_GREEN}All nodes processed. Script complete.${COLOR_RESET}"
     else
-        log "$LOG_LEVEL_ERROR" "Script execution stopped early due to user input or errors."
-        exit 1
+        log "$LOG_LEVEL_ERROR" "${COLOR_BOLD}Script execution stopped early due to user input or errors.${COLOR_RESET}"
     fi
-}
+}  # End of main function
 
 # Run main function
 main "$@"
