@@ -1,0 +1,8 @@
+==========================================
+Reboot Status Report - Fri Apr 18 19:33:40 CDT 2025
+==========================================
+Total nodes processed: 1
+Successfully rebooted: 1
+Failed to reboot: 0
+Success rate: 100%
+==========================================
